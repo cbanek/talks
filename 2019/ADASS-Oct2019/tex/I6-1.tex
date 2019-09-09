@@ -1,0 +1,122 @@
+% super simple template for automated 2018 ADASS manuscript generation from the registration entry
+% place this file in your ADASS2018_author_template directory
+%
+% Only few comments here, see the ADASS_template.tex for a more fully commented version, and
+% ManuscriptInstructions.pdf if you need more background, and if you even need more, APS's own
+% manual2010.pdf has it all!
+
+% Version 16-aug-2019 (Erik Deul)
+
+\documentclass[11pt,twoside]{article}
+\usepackage{asp2014}
+
+\aspSuppressVolSlug
+\resetcounters
+
+\bibliographystyle{asp2014}
+
+\markboth{Banek and Author2}{(I6.1) Why is the LSST Science Platform built on Kubernetes?}
+% remove/add as you need
+
+\begin{document}
+
+\title{(I6.1) Why is the LSST Science Platform built on Kubernetes?}
+
+
+\author{Christine~Banek$^1$ and Sample~Author2$^2$}
+\affil{$^1$AURA/LSST, Institution City, State/Province, Country; \email{cbanek@lsst.org}}
+\affil{$^2$Institution Name, Institution City, State/Province, Country}
+% remove/add as you need
+
+% remove/add authors as you need
+\paperauthor{Christine~Banek}{cbanek@lsst.org}{ORCID}{AURA/LSST}{Author1 Department}{City}{State/Province}{Postal Code}{Country}
+\paperauthor{Sample~Author2}{Author2Email@email.edu}{ORCID_Or_Blank}{Author2 Institution}{Author2 Department}{City}{State/Province}{Postal Code}{Country}
+% remove/add as you need
+
+% leave these next few aindex lines commented for the editors to enable them. Use Aindex.py to generate them for yourself.
+% first presenting author should be the first entry for bold-facing the author index page-reference
+%\aindex{Banek,~C.}
+%\aindex{Author2,~S.}
+% remove/add as you need
+
+% leave the ssindex lines commented for the editors to enable them, use Index.py to suggest yours
+%\ssindex{FOOBAR!conference!ADASS 2018}
+%\ssindex{FOOBAR!organisations!ASP}
+
+% leave the ooindex lines commented for the editors to enable them, use ascl.py to suggest yours
+%\ooindex{FOOBAR, ascl:1101.010}
+  
+\begin{abstract}
+In this talk I will go through some of my favorite reasons
+why the LSST Science Platform is being built on Kubernetes.
+Learn some of the many advantages Kubernetes provides throughout
+development and operations, even if you aren't planning on
+scaling to big data.
+
+\end{abstract}
+
+\section{Introduction}
+
+Your abstract currently has 269 characters. For more than 1000
+it's possibly too long. Just sayin' Since this paper was written by
+some python code, ignore that warning, since you will edit most of
+this rubbish away for your final version.
+
+
+\section{This Template}
+
+To use this 2018 personalized template instead of the {\tt
+  ADASS\_template}, copy this file (named something like O3-1.tex,
+P5-2.tex, B4.tex, F3.tex, T1.tex, or I2-1.tex) in your local {\tt
+  ADASS2018\_author\_template} directory (where you also find the
+asp2014.sty, the Makefile etc).  Edit the macros in the {\tt makedefs}
+file, and run ``{\tt make}'' and hope for the best.  If that runs into
+trouble, check if your version of latex uses a different calling
+sequence.  Some instructions are in the Makefile. When you send your
+tar file, it's useful to send the {\tt makedefs} file along.
+
+\section{Any Figures?}
+
+This template has no figures. Look for the larger template and
+Makefile how to do this. But most importantly, your figures need to
+be EPS files, and their names should be I6.1\_f1.eps ,
+I6.1\_f2.eps  etc.
+
+\section{Any Tables?}
+
+This template has no tables. Look for the larger template
+how to do this. 
+
+\section{Final Check}
+
+Please use ``{\tt make check}'' (which runs {\tt PaperCheck.py}) to
+check if you can make life for the ADASS editors a little
+easier. Pretty Please.
+
+After this ``{\tt make tar}'' will create the correct archive to be sent to
+the editors. zip files also work.
+
+\section{Any Photographs?}
+
+If your paper has enough room at the end, the editors may decide to use this
+for a conference photograph.
+
+\section{Summary}
+
+This template has no bibtex file.  Look for the larger template and
+Makefile how to do this. By default the {\tt Makefile} will create an
+empty I6.1.bib. When you add references to this, uncomment the
+line \verb+\bibliography+ below, use ``{\tt make pdf}'' to create
+your beautifully looking PDF. Only use the
+\verb"\citet" and \verb"\citep" macros!
+
+
+
+% \bibliography{I6.1}
+
+% if we have space left, we might add a conference photograph here. Leave commented for now.
+% \bookpartphoto[width=1.0\textwidth]{foobar.eps}{FooBar Photo (Photo: Any Photographer)}
+
+
+\end{document}
+
