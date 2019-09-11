@@ -15,7 +15,7 @@
 
 \bibliographystyle{asp2014}
 
-\markboth{Banek and Author2}{(I6.1) Why is the LSST Science Platform built on Kubernetes?}
+\markboth{Banek}{(I6.1) Why is the LSST Science Platform built on Kubernetes?}
 % remove/add as you need
 
 \begin{document}
@@ -23,14 +23,12 @@
 \title{(I6.1) Why is the LSST Science Platform built on Kubernetes?}
 
 
-\author{Christine~Banek$^1$ and Sample~Author2$^2$}
-\affil{$^1$AURA/LSST, Institution City, State/Province, Country; \email{cbanek@lsst.org}}
-\affil{$^2$Institution Name, Institution City, State/Province, Country}
+\author{Christine~Banek$^1$}
+\affil{$^1$AURA/LSST, Tucson, AZ, USA; \email{cbanek@lsst.org}}
 % remove/add as you need
 
 % remove/add authors as you need
-\paperauthor{Christine~Banek}{cbanek@lsst.org}{ORCID}{AURA/LSST}{Author1 Department}{City}{State/Province}{Postal Code}{Country}
-\paperauthor{Sample~Author2}{Author2Email@email.edu}{ORCID_Or_Blank}{Author2 Institution}{Author2 Department}{City}{State/Province}{Postal Code}{Country}
+\paperauthor{Christine~Banek}{cbanek@lsst.org}{0000-0002-4337-4956}{AURA}{LSST}{Tucson}{AZ}{85716}{USA}
 % remove/add as you need
 
 % leave these next few aindex lines commented for the editors to enable them. Use Aindex.py to generate them for yourself.
@@ -45,63 +43,141 @@
 
 % leave the ooindex lines commented for the editors to enable them, use ascl.py to suggest yours
 %\ooindex{FOOBAR, ascl:1101.010}
-  
-\begin{abstract}
-In this talk I will go through some of my favorite reasons
-why the LSST Science Platform is being built on Kubernetes.
-Learn some of the many advantages Kubernetes provides throughout
-development and operations, even if you aren't planning on
-scaling to big data.
 
+\begin{abstract}
+LSST has chosen Kubernetes as the platform for deploying and
+operating the LSST Science Platform.  We first present the
+background reasoning behind this decision, including both
+instrument agnostic as well as LSST specific requirements.
+We then discuss the basic principals of Kubernetes, and how
+they are used as the basis for the LSST Science Platform.
+We conclude with an example of how an outside group may
+use the publicly available resources to deploy their own
+instance of the LSST Science Platform, and customize it
+to their needs.
 \end{abstract}
 
 \section{Introduction}
 
-Your abstract currently has 269 characters. For more than 1000
-it's possibly too long. Just sayin' Since this paper was written by
-some python code, ignore that warning, since you will edit most of
-this rubbish away for your final version.
+The Large Synoptic Survey Telescope (LSST) will produce a huge amount
+of data over its 10 year survey. A dataset this large is not easily stored,
+copied, or manipulated.  To store the data and process it, hundreds of
+machines will be required.
 
+The LSST Science Platform (LSP) provides next to data processing and real
+time interaction with the data.  By allowing scientists to run their own
+custom python code in Jupyter notebooks in the LSP, we place them near the data,
+which allows for much higher bandwidth access to the data than between
+computers on the internet, as well as access to more processing
+resources for doing large scale analysis over the dataset.
 
-\section{This Template}
+\subsection{Without Reproducbility, No One Knows What You Found}
 
-To use this 2018 personalized template instead of the {\tt
-  ADASS\_template}, copy this file (named something like O3-1.tex,
-P5-2.tex, B4.tex, F3.tex, T1.tex, or I2-1.tex) in your local {\tt
-  ADASS2018\_author\_template} directory (where you also find the
-asp2014.sty, the Makefile etc).  Edit the macros in the {\tt makedefs}
-file, and run ``{\tt make}'' and hope for the best.  If that runs into
-trouble, check if your version of latex uses a different calling
-sequence.  Some instructions are in the Makefile. When you send your
-tar file, it's useful to send the {\tt makedefs} file along.
+The processes and tools used to manage these systems must also scale and
+support these needs.  At the core of these needs is the ability to
+reproducibly run software on machines, which has always seemed easier
+in theory than in practice.
 
-\section{Any Figures?}
+Over the 10 year survey, machines will naturally fail, or be replaced.
+Software will be updated and reinstalled.  The system
+must be able to work assuming that some of its nodes will be offline at
+any given time, because some inevitably will be with such a large number
+of machines.  As the system also needs to support user demand, the system
+must also be able to appropriately scale to load.
 
-This template has no figures. Look for the larger template and
-Makefile how to do this. But most importantly, your figures need to
-be EPS files, and their names should be I6.1\_f1.eps ,
-I6.1\_f2.eps  etc.
+These practical demands require an automated and reliable process for
+deploying new systems, or the whole system from scratch, in a reproducible
+way.  If it was not automated, then too much manual effort would be involved,
+taking time and resources.  Even well intentioned manual work by knowledgeble
+professionals is never perfect, possibly leaving unnoticed mistakes that could
+affect performance or even scientific results.
 
-\section{Any Tables?}
+While your project may not suffer from the scale of LSST, I would argue it is
+even more important to have reproducible software.  By having fewer machines,
+a larger percentage of your computing resources will be unavailable if struck by
+hardware or software failures, possibly to the point of degraded performance
+or unavailability of the entire system.  If, however, you are lucky and your
+few machines take many years to fail, it may be found too late that you cannot
+easily reproduce the configuration due to software being deprecated or deleted.
+Longer lived machines also have greater risk of being manually tampered with by
+well meaning operators and developers attempting to quickly fix or diagnose
+solutions.
 
-This template has no tables. Look for the larger template
-how to do this. 
+Results are only as good as your ability to reproduce them, large or small.
+Reproducing scientific results on a non-reproducible software platform of any size
+is fraught with risks.  While software will never be perfect, by tightly controlling
+the conditions in which it runs, results should at least be easily reproducible.
+If it's not, no one knows if you've found a software bug or the next Nobel prize.
 
-\section{Final Check}
+\subsection{The Quest for Reproducible Software}
 
-Please use ``{\tt make check}'' (which runs {\tt PaperCheck.py}) to
-check if you can make life for the ADASS editors a little
-easier. Pretty Please.
+Reproducing a working software environment is not a trivial thing, due
+mostly to the number of interconnected pieces involved.  There's the software
+you are trying to run (the applications themselves), libraries and runtimes that
+those applications require, the operating system, and other applications running with
+or by the application on the same machine. More often than not, one application
+will also call another over the network, which requires knowledge of where that
+application is hosted (DNS name, URL) as well.
 
-After this ``{\tt make tar}'' will create the correct archive to be sent to
-the editors. zip files also work.
+Most software is designed to run under very controlled conditions, because
+it makes software easier to write, test, and verify.  Having to support every version of every
+operating system is a lot of work that doesn't make sense for many software
+projects, especially when the software won't need to run under those constraints
+in production.
 
-\section{Any Photographs?}
+Enter virtualization and the virtual machine (VM).  Now on your development machine running
+Windows, you can run a linux server with a particular configuration that behaves just
+like production.  Disk images and unattended installs for VMs provided a standard way of
+creating machines with a cookie cutter configuration.
 
-If your paper has enough room at the end, the editors may decide to use this
-for a conference photograph.
+Running VMs in production was still hard.  VMs can introduce a fair amount of performance
+overhead with heavy processing or disk I/O.  Each VM also has its own copy of the operating
+system, libraries, and utilities, increasing the overhead of placing many VMs on the same
+physical host.  Using VMs, it can be very costly to provide complete isolation of application
+instances, but it was possible.  Many hybrid approaches with different flavors of machines running
+a particular set of services was very popular and successful, but this lacked flexibility
+in the ways a system could scale.
 
-\section{Summary}
+\subsection{Containerization}
+
+Containers are the current industry solution to this problem.  Containers are a way of packaging
+the application, its dependencies, and configuration as one unit.  Many containers can be
+run on one host sharing the same kernel.  This reduces the overhead of running many containers
+versus running many VMs, while still providing much of the isolation of a VM.
+
+\footnote{Containers use various features in kernels such as namespacing and cgroups
+to share the same kernel and have isolated filesystems and process spaces.}
+
+Since containers have everything they need already installed, and without the overhead of
+starting an operating system, containers can start very quickly, typically within seconds.
+This makes them not only reliable but quick to start on a new machine.
+
+Containers can also be published to the internet.  hub.docker.com allows for users to
+create accounts and publish their own container images, which are basically a compressed
+tar-file of the root filesystem.  This allows for anyone to download your container and
+start it on their machine.
+
+So, finally, we have a reliable method to reproduce the installation of our software.
+
+\subsection{Kubernetes}
+
+Kubernetes, also lovingly known as k8s, is a platform for configuring, hosting, and
+running containers.  It can operate on one machine, or elasticly scale up or down to many machines.
+Kubernetes provides the framework to schedule containers, starting new
+containers on different machines when its previous host goes offline or becomes unresponsive.  Kubernetes
+also provides tools to help with things like configuration, secrets, storage, and networking.
+
+\section{Core Concepts of Kubernetes}
+
+\section{Helm}
+
+\section{Installing the LSP using Helm}
+
+\section{Customizing the Landing Page}
+
+\section{Publishing Your Astronomy Software with Helm}
+
+\section{Conclusion}
 
 This template has no bibtex file.  Look for the larger template and
 Makefile how to do this. By default the {\tt Makefile} will create an
@@ -112,7 +188,7 @@ your beautifully looking PDF. Only use the
 
 
 
-% \bibliography{I6.1}
+\bibliography{I6.1}
 
 % if we have space left, we might add a conference photograph here. Leave commented for now.
 % \bookpartphoto[width=1.0\textwidth]{foobar.eps}{FooBar Photo (Photo: Any Photographer)}
