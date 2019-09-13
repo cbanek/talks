@@ -44,6 +44,8 @@
 % leave the ooindex lines commented for the editors to enable them, use ascl.py to suggest yours
 %\ooindex{FOOBAR, ascl:1101.010}
 
+\newcommand{\code}[1]{\texttt{#1}}
+
 \begin{abstract}
 LSST has chosen Kubernetes as the platform for deploying and
 operating the LSST Science Platform.  We first present the
@@ -155,25 +157,303 @@ This makes them not only reliable but quick to start on a new machine.
 Containers can also be published to the internet.  hub.docker.com allows for users to
 create accounts and publish their own container images, which are basically a compressed
 tar-file of the root filesystem.  This allows for anyone to download your container and
-start it on their machine.
+start it on their machine.  When published, containers generally have a repository name,
+an image name, and a tag that contains some version information.  This is typically
+written as \code{repo\_name/image\_name:tag}.
 
-So, finally, we have a reliable method to reproduce the installation of our software.
+So, finally, we have a reliable method to reproduce the installation of our software,
+at least on one machine.
 
 \subsection{Kubernetes}
 
-Kubernetes, also lovingly known as k8s, is a platform for configuring, hosting, and
-running containers.  It can operate on one machine, or elasticly scale up or down to many machines.
-Kubernetes provides the framework to schedule containers, starting new
-containers on different machines when its previous host goes offline or becomes unresponsive.  Kubernetes
-also provides tools to help with things like configuration, secrets, storage, and networking.
+While containers are very useful, one container doesn't know about the other containers
+on the system, and doesn't know anything about what might be running on other systems.
+In order to build complex systems from these containers, we need an orchestrator that
+can stitch together containers across multiple machines into one logical system.  Enter
+Kubernetes.
 
-\section{Core Concepts of Kubernetes}
+Kubernetes, or k8s for short, is an open-source system built originally by Google to handle this exact
+problem.  Kubernetes allows for the coordination and orchestration of containers across
+a cluster of machines.
+
+\section{Kubernetes: Core Concepts}
+
+K8s can be complex for newcomers, and there are many great tutorials out there
+for K8s.  While this isn't intended as an introduction to K8s, we will
+introduce a few of the basic concepts to provide a common vocabulary for
+those who are not familiar.
+
+K8s is a declarative system - instead of running
+a sequence of commands, you inform k8s what you want the state of the system to be,
+and it will take the required actions to get to that declared state, as well as maintain
+that state over time.  K8s generally gets the declared state through a number of YAML documents
+that represent Kubernetes resources that are applied using the command line utility \code{kubectl}
+
+Let's learn about the different Kubernetes resource types through a 'hello world' example.
+\footnote{Here is a full tutorial that goes command by command through this process: https://kubernetes.io/docs/tutorials/hello-minikube/\#create-a-deployment}
+First, let's say you have a container named \code{myorg/hello\_world:latest}, which is
+the latest version of the \code{hello\_world} container, and you want to run this on kubernetes.
+
+The Kubernetes way of thinking about this is that you want to create a \code{deployment} of this
+container.
+\footnote{Here is a good hands on tutorial with command lines: https://kubernetes.io/docs/tutorials/hello-minikube/\#create-a-deployment}
+\footnote{Technically, deployments act on pods, which are groups of containers that should be scheduled next to each other.  But in this example, it is a pod with one container.}
+A \code{deployment} is a k8s resource that instructs Kubernetes to check the health of your container,
+and take actions to ensure it is kept running.  If the container exits, doesn't respond
+to a health check, or the machine hosting it becomes unavailable, that container is then restarted
+or moved to a new machine.
+
+Deployments also allow a number of replicas to be set.  To run more copies of your application to
+scale it up, you can use the \code{kubectl} tool to increase or decrease the number of replicas for
+a deployment.  If the number of running copies falls below the number of desired replicas, new
+containers are created.
+
+Kubernetes doesn't need to be told where to run the container.  Based on different heuristics,
+it will pick a machine to start the container on.  However, labels and restrictions can be placed
+on nodes and applications to ensure containers are run on particular groups of machines.
+\footnote{https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/}
+
+At this point, you have a running container, but you don't know where it is running, so therefore
+there is no way to access it.  Moreover, since a container might be moved or restarted somewhere
+else, you need to know how to contact the currently running container, wherever it is.  By creating
+a \code{service} resource, you can present a group of containers as an internal DNS name for your
+service.  This DNS name is taken from the \code{service} name, and will loadbalance
+requests amongst all the running containers using round-robin DNS.
+
+By default, containers running in k8s are connected to a private internal network shared by all
+the k8s nodes, and is not accessible from the internet.  To allow the container to be reached
+from the internet, you will need an \code{ingress} resource.
+\footnote{The other way is to set the type of the service to LoadBalancer, which on many
+cloud providers allocates an external IP address, but this configuration is not available
+everywhere.}
+
+An \code{ingress} resource allows a k8s service to be contacted from an external network,
+such as the internet.  \code{ingress} resources have a mapping of hostnames and HTTP(s) paths
+to backend k8s \code{service} instances.  These requests are routed through an ingress
+controller, such as the \code{nginx-ingress} controller, which we will use later on.
+Each ingress rule can have individualized k8s annotations to configure timeouts,
+or use advanced features such as URL rewriting.  By using \code{ingress} resources you can
+avoid the pattern of having a different nginx or load balancer in front of each service.
+It is also easy to host multiple web services or applications behind one public DNS name,
+routing them by the URL.
+
+Some kind of permenant storage is typically required for applications, and since k8s may move containers
+between machines, being able to find and utilize the same storage is an important
+consideration.  K8s provides a way to allocate and attach storage to your container.
+The \code{persistent volume} or \code{PV} tells k8s what type of storage to use, and how
+much space to allocate.  Each \code{PV} then be mounted by creating a \code{persistent
+volume claim}, and using that claim in the \code{deployment} YAML.  In this way, your
+container can mount a \code{PVC} on a specific path, making it look just like another
+filesystem.  However, unlike the container filesystem, the \code{persistent volume}
+storage will be kept after the lifecycle of the container, allowing it to hold persistent
+state across container restarts.
+
+K8s provides a few ways of configuring services and managing configuration files.  The
+simplest is the container environment.  In the \code{deployment} YAML, each container
+is defined, including the UNIX environment variables to set for that container.  In this
+way, a container when running can look at the variables injected into its local environment
+for configuration.  Due to the ubiquitous use of environment variables for programs, intended
+for containers or not, this can be a very simple way to configure your container.
+
+Another type of configuration is the \code{configmap}.  K8s \code{configmap}s are typically
+groups of files each with a name.  Like mounting a \code{persistent volume}, a \code{configmap}
+can be mounted into a container, presenting the files in the configmap as normal files to be
+read by any application.
+
+One last type of configuration to mention is the k8s \code{secret}.  K8s \code{secret}s can
+be used to hold sensitive configuration files of any type, passwords, or certificates.  Special
+care is taken to not expose the values of these secrets, which are typically shown for
+environment variables and configmaps.  By using \code{secret}s it is easier to tell which
+parts of the configuration are secret (and likely instance specific) and which are general
+configuration variables.  \code{secret}s can be mounted like a volume into the containers
+that they are used, or imported into the environment variables.
+
+Finally, k8s also has the concept of different \code{namespaces} to provide isolation between
+different applications running on the system.  \code{namespaces} not only provide a way to
+compartmentalize applications, but also to control them with roles and quotas.
+
+\footnote{Using roles and quotas is an important feature, but outside the scope of this paper.  Here are some helpful links:
+https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
+https://kubernetes.io/docs/concepts/policy/resource-quotas/ https://kubernetes.io/docs/reference/access-authn-authz/rbac/}
 
 \section{Helm}
 
-\section{Installing the LSP using Helm}
+K8s can be intimidating, and each application can have many parts.  For people who just
+want to install the software and run it, rather than develop it, looking at the raw
+k8s YAMLs might be too confusing or create a high barrier to entry.
+
+Over the lifetime of k8s, many groups have tried to solve this problem, and one of these
+solutions is Helm.\footnote{https://helm.sh}  Helm is a package manager for k8s, allowing
+for installation of all the parts of an application in one command, similar to apt-get
+or yum on Linux.  Helm also allows for upgrades and rollbacks of software versions.
+Most importantly, Helm allows for customization of the installed software, which is
+especially important to configure the software correctly for your k8s environment.
+
+Helm's packages are called charts.  Each chart is a tar archive containing a set of
+k8s YAML files to apply to the cluster, but these YAML files are first run through
+a templating engine.  This allows for a chart developer to take user provided values
+and place them in the right parts of the final YAML files it will send to k8s.
+The values to apply to the template are provided via a user specific YAML document.
+This allows for the user to build a simpler YAML document with just the configuration
+values they want to apply, without having to have deep k8s knowledge.  In this way,
+users can now install software without needing to know how to develop that software,
+which lowers the barrier to entry.
+
+Helm is one of the leading software packaging schemes for k8s, and many charts
+already exist for commonly used open-source software.\footnote{https://github.com/helm/charts
+is the repository for official Helm charts}
+
+\section{Using Helm to Installing the LSP}
+
+To help everyone be able to install the LSP, there is now a repository of helm
+charts available at https://github.com/lsst-sqre/charts.  Each of these components
+of the LSP has its own chart that anyone can install:
+
+\begin{itemize}
+
+\item landing-page: A simple HTML landing page for the LSP with links to help users
+discover the different components of the LSP.  This also provides a simple message of
+the day to users, allowing operators and administrators to present messages about
+system upgrades or downtime.
+
+\item nublado: LSST's JupyterHub environment.  Nublado allows for users to spawn
+JupyterLab containers in k8s.  Users can run Jupyter notebooks and/or do interactive
+data analysis and investigation next to the data.  This chart provides a number of
+features over stock Jupyter, including a page to allow users to pick the version of
+their Jupyter environment, as well as more tightly integrated namespace and quota
+features.
+
+\item firefly: The LSP provides firefly as one of the ways users can interact with
+data using their browser.  Firefly is a portal that allows for quick preliminary
+investigation using the browser, as well as being integrated into the Jupyter
+environment for interactive analysis with notebooks.
+
+\item cadc-tap: The CADC TAP chart installs an IVOA TAP (Table Access Protocol)
+server into k8s, allowing for users to query catalogs through nublado, firefly,
+and externally.  This chart also sets up simple databases in k8s to provide
+TAP\_SCHEMA and a sample dataset for the TAP service to serve.
+
+\end{itemize}
+
+As we add more services and features to the LSP, they will also get Helm charts.
+
+Convenience scripts with a working configuration for Google are provided here:
+https://github.com/lsst-sqre/lsp-deploy
+
+Given that the instructions may change over time, I won't go through the exact
+instructions here, but explain what is happening.  The authorative instructions
+are in the repository along side the code, so they can be updated together.
+
+There are a few stages to installing the LSP.
+
+\subsection{Creating a Kubernetes Cluster}
+
+Either you have an existing k8s cluster, or you will create one.  It is very
+easy to create a k8s cluster on Google using Google Kubernetes Engine (GKE).
+While this can be done on the command line, it can be done with little effort
+using the Google Cloud Console.  https://cloud.google.com/kubernetes-engine/docs/how-to/creating-a-cluster provides a good walkthrough of creating a cluster using both the command line
+and the web portal.
+
+In general, you want your k8s cluster to contain at least 3 nodes, each node
+having at least 2 if not 4 cores.  Also be sure to alter the host disk from
+the default 100GB to a higher number to store all the container images, about
+200GB should be safe.
+
+Once you've created your cluster, you can connect it to your local kubectl
+command by clicking the 'Connect' button, and running the command line provided.
+
+\subsection{Setting up Helm}
+
+Helm has a local component and a k8s component that both need to be installed.
+The \code{install\_tiller.sh} script provides a simple wrapper to set up Helm.
+By default, this isn't particularly secure, so you should look into the Helm
+documentation to create a more secure deployment, but it will allow us to
+continue and install the various LSP components.  You can tell if helm is
+working properly by running \code{helm ls}, and returning that nothing
+is installed, but no error is generated.
+
+\subsection{Configuring nginx-ingress}
+
+The next step is installing and configuring nginx-ingress using the Helm chart.
+These steps are provided in \code{install\_ingress.sh}.  This script creates
+a k8s secret holding your SSL certificate for the cluster, installing the Helm
+chart, and configuring nginx to use the created secret to find the certificate.
+
+If you don't already have a current SSL certificate, you can create one for
+free using letsencrypt.org.\footnote{https://letsencrypt.org/getting-started/}
+
+Now there is a manual step of setting the DNS record for your new cluster.
+Run the \code{public\_ip.sh} script to retrieve the external IP address for your
+cluster, and set it to a DNS name that works with the SSL certificate provided.
+
+At this point, if everything went well, you should be able to go to your
+DNS name over https, and get a 404 that says \code{default backend}.
+
+\subsection{Installing LSP Charts with Helm}
+
+Now let's examine the \code{install\_lsp.sh} script.  This script adds the LSP
+chart repository to Helm's search path, and uses \code{helm install} to install
+the charts.  After you run this script, you should be able to run \code{helm ls}
+and see that multiple charts are now installed, and their versions.  Now if you
+return to your DNS name in the browser, you should be presented with the LSST
+LSP Landing Page.  This provides links to the Nublado notebook environment and
+Firefly.
+
+Depending on the size of your cluster, it may take a few moments for all the
+services to start and become ready.  You can check the status of different
+k8s resources by running \code{kubectl get all -A} which will show all of
+the k8s resources and their status.
 
 \section{Customizing the Landing Page}
+
+Now that you have a running LSP, it is easy to inspect it, use it, and see
+how it works in practice.  One of the first things you might want to do is
+customize the landing page.  After all, it would be confusing to present
+yourself as the LSST Science Platform if you are not.  Here we will go
+through a few different types of customizations as examples of how you
+could customize the LSP for your needs.
+
+\subsection{Changing the MOTD}
+
+One simple thing you will want to do is change the message of the day,
+which is presented in a box on the landing page.  After all, it would be
+confusing to present messages that aren't intended for your users.
+The message of the day comes from a markdown document whose URL is passed
+into the landing page container as an environment variable.
+We will use Helm to allow us to customize that parameter
+to point to a new markdown document.  Create a file named langing-page-values.yaml
+with the following contents.
+
+\fbox{
+motd\_url: <URL of your MOTD markdown document>
+}
+
+Now you can call helm install and add the argument --values, and pass the path to
+the newly created file.  This will take the URL provided in the landing-page-values.yaml,
+and apply it to the chart.  Now when you go to the landing page, you should see
+your new MOTD message.
+
+\subsection{Changing the Container Image}
+
+Instead of just changing the MOTD, if you want to use a different HTML landing page,
+the easiest way is to create a new container with the web page you want.  You can
+see how the docker container for the landing page is created by looking at the
+Dockerfile in the landing page repository.\footnote{https://github.com/lsst-dm/lsp-landing-page/blob/master/Dockerfile}
+
+It is possible to either make a GitHub fork of this git repository or create
+a new docker image using your own assets.  For the LSP landing page, all the assets
+are in the public\_html directory of the git repository, and it is added to a directory
+that nginx is ready to serve it from.
+
+Once you make a new container and push it to hub.docker.com, you can create a
+file named landing-page-values.yaml to point to that image.  If your new image is
+\code{newtelescope/landing-page:latest} your landing-page-values.yaml would look like:
+
+\fbox{
+image:
+  repository: newtelescope/landing-page
+  tag: latest
+}
 
 \section{Publishing Your Astronomy Software with Helm}
 
