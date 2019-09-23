@@ -316,6 +316,13 @@ discover the different components of the LSP.  This also provides a simple messa
 the day to users, allowing operators and administrators to present messages about
 system upgrades or downtime.
 
+\item fileserver: A simple NFSv4 fileserver that provides a shared storage for
+home directories an data.  This is mounted by the Nublado JupyterLab containers,
+and allows for persistent storage between logins, as well as a place to centrally
+store data to process.  For those with an existing fileserver in the environment,
+this won't be used, but instead Nublado can be configured to point to your existing
+fileserver.
+
 \item nublado: LSST's JupyterHub environment.  Nublado allows for users to spawn
 JupyterLab containers in k8s.  Users can run Jupyter notebooks and/or do interactive
 data analysis and investigation next to the data.  This chart provides a number of
@@ -351,8 +358,11 @@ There are a few stages to installing the LSP.
 Either you have an existing k8s cluster, or you will create one.  It is very
 easy to create a k8s cluster on Google using Google Kubernetes Engine (GKE).
 While this can be done on the command line, it can be done with little effort
-using the Google Cloud Console.  https://cloud.google.com/kubernetes-engine/docs/how-to/creating-a-cluster provides a good walkthrough of creating a cluster using both the command line
-and the web portal.
+using the Google Cloud Console.
+
+\footnote{https://cloud.google.com/kubernetes-engine/docs/how-to/creating-a-cluster
+provides a good walkthrough of creating a cluster using both the command line
+and the web portal.}
 
 In general, you want your k8s cluster to contain at least 3 nodes, each node
 having at least 2 if not 4 cores.  Also be sure to alter the host disk from
@@ -455,17 +465,76 @@ image:
   tag: latest
 }
 
+\subsection{Fixing Bugs and Suggesting Chart Changes}
+
+Bugs are the nature of software development, and Helm charts are no different.  If you
+find a bug, please make an issue on the chart repo \footnote{https://github.com/lsst-sqre/charts}
+on GitHub.  This will allow others to see there may be an issue, as well as notify the
+developers that something may need a fix.
+
+If you already know what the required fix is, please submit a pull request (PR)
+on the repository with your changes.
+
+\footnote{https://help.github.com/en/articles/creating-a-pull-request}
+
+If you have new features you wish to add to an existing chart, such as new ways of overriding
+particular deployment values, you can also submit a PR containing that information.  It helps
+if the changes don't remove or alter other functionality, but sometimes this is required.
+
 \section{Publishing Your Astronomy Software with Helm}
+
+The Helm charts listed in section 4 are not intended to be a complete or authoritative
+list, but a starting place.  I hope that after seeing the usefulness of being able
+to install another institutions science platform, your institution will also want to
+Kubernetes and Helm to share software with the rest of the astronomy community.
+
+The Helm repository framework allows for anyone to pull charts from multiple different
+repositories without having to have a centralized store, gate-keeper, or process.  It is
+simple to set up your own repository on GitHub to store your own set of helm charts,
+and proceed with whatever software development process or timeline your institution
+recommends or requires.\footnote{https://helm.sh/docs/chart\_repository/ is an
+excellent resource for using existing services such as GitHub Pages and others
+to host your helm charts for free.}
+
+When possible, it is better to patch or add features to an existing chart rather
+than create a new chart that deploys the same software.  Having many charts that
+accomplish the same thing can add confusion and maintenance overhead.
+
+If you are creating a new chart for a new software service, there are many great
+blog posts and helpful documentation on the Helm website.\footnote{https://docs.bitnami.com/kubernetes/how-to/create-your-first-helm-chart/
+is a very thorough walkthrough of an example}
 
 \section{Conclusion}
 
-This template has no bibtex file.  Look for the larger template and
-Makefile how to do this. By default the {\tt Makefile} will create an
-empty I6.1.bib. When you add references to this, uncomment the
-line \verb+\bibliography+ below, use ``{\tt make pdf}'' to create
-your beautifully looking PDF. Only use the
-\verb"\citet" and \verb"\citep" macros!
+Astronomy as a field will be ever more reliant on software to produce its results.
+Being able to reproducibly develop, deploy, configure, and utilize software are
+essential first steps to relying on that software to produce novel scientific
+results that can be reproduced, verified, and trusted.
 
+As astronomy software becomes more complex and intertwined with other big
+data science fields, such as computer science, biology, and physics, it will
+become necessary to share software between these groups.  Writing software that
+is of high quality and scales to these problems requires specialized talent,
+and a lot of other resources.  It makes logical, scientific, and financial
+sense that disparate fields work together to build, test, and verify software
+together, instead of each institution developing their own specialized software.
+
+In the era of big data and multi-messenger astronomy, it is practically required
+for institutions that mirror an instrument's data to also provide local mirrors
+of software services and tools to operate on that data.  Given the specialized
+nature of each instrument, it will be increasingly important for environments
+to allow astronomers to work with multiple datasets in the same datacenter
+simultaneously.  These multi-instrument datacenters will require a standard
+way of installing and updating software provided by the instrument creators
+with limited assistance. Kubernetes and Helm provide one way of accomplishing
+this goal using already standard software industry practices and tooling.
+
+By bringing in tools and practices from the software industry, we can also
+leverage the open source community (as well as companies who participate in
+open source) as a force multiplier for astronomers to accomplish
+more than they ever could before. Using these industry standard tools that
+developers know and love, it could also be a boon to recruiting talented
+software developers to astronomy.
 
 
 \bibliography{I6.1}
