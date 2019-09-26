@@ -143,26 +143,23 @@ machine, with both operating systems and their applications isolated from each o
 Disk images and unattended installs for VMs provide a standard method of replicating
 machines with a cookie cutter configuration template.
 
-Running VMs in production at scale is still hard.  VMs can introduce performance
-overhead with heavy CPU processing or disk I/O.  Each VM contains its own copy of the operating
+VMs introduce performance overhead under heavy CPU processing or disk I/O.
+Each VM also contains its own copy of the operating
 system, libraries, and utilities, increasing the overhead of placing many VMs on the same
-physical host.  This overhead contributes to a low packing efficiency of VMs per physical machine.
+physical host.
 Using VMs, it can be very costly to provide complete isolation of application
 instances by running each application on an independent VM, but it was possible.
-Hybrid approaches of running a few applications together on one VM is popular and generally
-successful, although this sacrifices flexibility for scaling up or down.
 
 \subsection{Containerization}
 
-Containers are the current industry solution the packing efficiency problem.  Containers are a way of packaging
+Containers are a way of packaging
 the application, its dependencies, and configuration as one self-contained unit.  Many containers can be
 run on one host sharing one operating system kernel, rather than simultaneously
 running many independent kernels in virtual machines.  This reduces the overhead of running many containers
-versus running many VMs, while still providing much of the isolation of a VM.\footnote{Containers 
+versus running many VMs, while still providing much of the isolation of a VM.\footnote{Containers
 achieve this by using various features in kernels such as namespacing and cgroups
 to share the same kernel while isolating filesystems and process spaces.}  Containers
-provide much higher packing efficiency, allowing for many containers to run on one machine,
-encouraging further isolation between applications so that each application is run in its
+encourage further isolation between applications so that each application is run in its
 own container.
 
 Due to their self-contained nature, and without the overhead of
@@ -178,7 +175,7 @@ installed and customized, files can be added, and commands can be run to create 
 new purpose-built container hosting your software.  These steps are contained in a
 \code{Dockerfile}, which can be checked into source control along with the code.
 
-Containers are also stateless, in that when a container is started, it always
+Containers are stateless; on startup it always
 has the configuration it had when it was built.  Any files changed or added
 after a container is started is lost upon restart.  For persistent storage,
 volumes can be mounted inside a container, using the filesystem of the host
@@ -186,9 +183,9 @@ to allow for storage between container restarts.  While this may seem cumbersome
 at first, by resetting the state, it allows for containers to be more resilient
 to an unrecoverable state or corruption of the system.
 
-Containers are also easily shareable by publishing them on the internet.  Docker Hub\footnote{https://hub.docker.com}
-allows for users to create accounts and publish containers, which basically consist of
-a compressed tar-file of the root filesystem.\footnote{For performance, this is actually split into
+Containers are also easy to publish on the internet.  Docker Hub\footnote{https://hub.docker.com}
+allows for users to publish containers, which consist of
+a compressed tar-file of the root filesystem.\footnote{For performance, this is split into
 various layers, so that containers can share parts of the filesystem where possible} This allows for
 anyone to download your container and start it on their local machine in minutes.  Containers are published under
 a name, along with tags that can represent different versions.\footnote{For example, lsst/application:latest}\footnote{
@@ -200,7 +197,7 @@ at least on one machine.
 
 \subsection{Kubernetes}
 
-While containers are very useful, by design, one container doesn't know about the other containers
+While containers are very useful, one container doesn't know about the other containers
 on the system, and doesn't know anything about what might be running on other systems.
 In order to build complex systems from these containers, we need an orchestrator that
 can stitch together containers across multiple machines to form one logical system.
@@ -211,11 +208,6 @@ problem.  Kubernetes allows for the coordination and orchestration of containers
 a cluster of machines.
 
 \section{Kubernetes: Core Concepts}
-
-K8s can be complex for newcomers, and there are many great tutorials out there
-for k8s.  While this isn't intended as an introduction to k8s, we will
-introduce a few of the basic concepts to provide a common vocabulary for
-those who are not familiar.
 
 K8s is a declarative system - instead of running
 a sequence of commands, you declare what you want the state of the system to be.
@@ -236,7 +228,7 @@ A k8s \code{deployment} resource instructs Kubernetes to schedule a number of co
 to check the health of those containers,
 and take actions to ensure they are kept running and available.  If one container exits, doesn't respond
 to a health check, or the machine hosting it becomes unavailable, that container is then scheduled
-on a different machine automatically. 
+on a different machine automatically.
 
 A k8s \code{deployment} also allow a number of replicas to be set.  To run more copies of your application to
 scale up, you can use the \code{kubectl} tool to change the number of replicas for
@@ -249,8 +241,8 @@ it will pick a machine to schedule the container on.  However, labels and restri
 on nodes and applications to ensure containers are run on particular groups of machines.\footnote{
 https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/}
 
-At this point, you have a running container in a \code{deployment}, but since you don't know on which
-machine it is running, it is hard to discover how to access it externally.
+At this point, you have a container in a \code{deployment}, but since you don't know
+where it is running, it is hard to access it externally.
 Moreover, since a container might be moved or restarted on a different machine, you need to discover
 where the container is currently running.  By creating
 a \code{service} resource, you can contact containers using an internal DNS name.
@@ -308,23 +300,16 @@ parts of the configuration are secret (and likely instance specific) and which a
 configuration.  \code{secret}s can be mounted like a volume into the containers
 that they are used, or imported into the environment variables.
 
-Finally, k8s also has the concept of different \code{namespaces} to provide isolation between
-different parts of the system.  \code{namespaces} not only provide a way to
-compartmentalize applications, but also manage them with roles and quotas.\footnote{
-Using roles and quotas is an important feature, but outside the scope of this paper.  Here are some helpful links:
-https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
-https://kubernetes.io/docs/concepts/policy/resource-quotas/ https://kubernetes.io/docs/reference/access-authn-authz/rbac/}
-
 \section{Helm}
 
-K8s can be intimidating, and each application can have many parts.  For those who only 
+K8s can be intimidating, and each application can have many parts.  For those who only
 want to install and run software, rather than develop it, looking at the raw
 k8s YAML documents might be too confusing and create a high barrier to entry.
 
 Since the birth of k8s, many have tried to solve this problem, and one these
 solutions is Helm.\footnote{https://helm.sh}  Helm is a package manager for k8s, allowing
 for installation of all the parts of an application in one command, similar to apt-get
-or yum on Linux.  Helm also allows for upgrades and rollbacks of software versions.
+or yum for Linux.
 Most importantly, Helm allows for customization of the installed software, which is
 especially important to configure the software correctly for your needs and k8s environment.
 
@@ -367,8 +352,7 @@ fileserver.
 JupyterLab containers in k8s.  Users can then run Jupyter notebooks and do interactive
 data analysis next to the data.  This chart provides a number of
 features over stock JupyterHub, including a page to allow users to choose between
-different version of their Jupyter environment, as well as more tightly integrated 
-namespace and quota features for helping to operate Jupyter at large scale.
+different version of their Jupyter environment.
 
 \item firefly: The LSP provides Firefly as one of the ways users can interact with
 data using their browser.  Firefly is a portal that allows for quick preliminary
@@ -383,12 +367,11 @@ in k8s to provide TAP\_SCHEMA and a sample dataset for the TAP service to serve.
 \end{itemize}
 
 Convenience scripts with a working configuration for Google are provided here:
-https://github.com/lsst-sqre/lsp-deploy
-
-Given that the instructions may change over time, I won't go through the exact
+https://github.com/lsst-sqre/lsp-deploy\footnote{Given that the instructions
+may change over time, I won't go through the exact
 instructions here, but instead explain what is happening.  The authoritative instructions
 are in the lsp-deploy repository along side the code, so they can be updated together
-and remain relevant over time.
+and remain relevant over time.}
 
 There are a few stages to installing the LSP.
 
@@ -420,15 +403,14 @@ but it will serve for install the various LSP components on a test instance.
 You can tell if helm is working properly by running \code{helm ls}, and returning that nothing
 is installed, but no error is generated.
 
-\subsection{Configuring nginx-ingress}
+\subsection{Pre-installation Steps}
 
 The next step is installing and configuring nginx-ingress using the Helm chart.
 These steps are provided in \code{install\_ingress.sh}.  This script creates
 a k8s secret holding your SSL certificate for the cluster, installing the Helm
-chart, and configuring nginx to use the created secret to find the certificate.
-
+chart, and configuring nginx to use the created secret to find the certificate.\footnote{
 If you don't already have a current SSL certificate, you can create one for
-free using letsencrypt.org.\footnote{https://letsencrypt.org/getting-started/}
+free using letsencrypt.org at https://letsencrypt.org/getting-started/}
 
 Now there is a manual step of setting the DNS record for your new cluster.
 Run the \code{public\_ip.sh} script to retrieve the external IP address for your
@@ -437,6 +419,12 @@ cluster, and set it to a DNS name that works with the SSL certificate provided.
 At this point, if everything went well, you should be able to go to your
 DNS name over HTTPS, have it resolve, and be presented with a 404 that says
 \code{default backend}.
+
+Nublado requires GitHub authentication to verify people can log in.  Follow
+the GitHub instructions\footnote{
+https://developer.github.com/apps/building-oauth-apps/authorizing-oauth-apps/
+} for creating an OAuth application, and put the client ID and secret in the
+nublado-values.yaml file.
 
 \subsection{Installing LSP Charts with Helm}
 
@@ -447,11 +435,6 @@ and see that multiple charts are now installed along with their versions.  If yo
 now return to your DNS name in the browser, you should be presented with the LSST
 LSP Landing Page.  This provides links to the Nublado notebook environment and
 Firefly.
-
-Depending on the size of your cluster, it may take a few moments for all the
-services to start and become ready.  You can check the status of different
-k8s resources by running \code{kubectl get all -A} which will show all of
-the k8s resources and their status.
 
 \section{Customizing the Landing Page}
 
@@ -465,20 +448,14 @@ to demonstrate how easy it is to tailor the LSP.
 \subsection{Changing the MOTD}
 
 One simple thing you will want to do is change the message of the day,
-which is presented in a box on the landing page.  
+which is presented in a box on the landing page.
 The message of the day comes from a markdown document whose URL is passed
 into the landing page container as an environment variable.
 We will use Helm to allow us to customize that parameter
 to point to a new markdown document.  Edit landing-page-values.yaml
 and replace the \code{motd\_url} URL with the URL of a markdown document
-of your choice.
-
-Now when the LSP is installed, the message of the day should display
-the markdown document you specified.  This is because Helm has taken
-the values in landing-page-values.yaml and injected them into the
-appropriate place in the \code{deployment} resource.  By running
-Helm with the \code{--dry-run} option, you can inspect the YAML
-documents for the resources after the templating has been applied.
+of your choice. Now when the LSP is installed, the message of the day should display
+the markdown document you specified.
 
 \subsection{Changing the Container Image}
 
@@ -488,30 +465,12 @@ see how the docker container for the landing page is created by looking at the
 Dockerfile in the landing page repository.\footnote{
 https://github.com/lsst-dm/lsp-landing-page/blob/master/Dockerfile}
 
-It is possible to either make a GitHub fork of this git repository or create
-a new docker image using your own assets.  For the LSP landing page, all the assets
-are in the public\_html directory of the git repository.  The Dockerfile specifies
-that this directory is copied into the container to the directory from where nginx
-serves static files.
-
-Once you make a new container and push it to hub.docker.com, you can edit the 
+Once you make a new container and push it to hub.docker.com, you can edit the
 landing-page-values.yaml file to use that container instead of the default.
-If your new image is \code{newtelescope/landing-page:latest} your landing-page-values.yaml
-would be:
-
-\fbox{
-motd\_url: https://raw.githubusercontent.com/lsst-dm/lsp-landing-page/master/motd/Readme.md
-image:
-  repository: newtelescope/landing-page
-  tag: latest
-}
-
-Now upon running helm install, the new container will be run instead of the default, and
-navigating your browser to your LSP deployment should display the web page in your image.
 
 \subsection{Further Customization Options}
 
-To discover other configuration options that can be put in the different values YAML
+To discover configuration options that can be put in the different values YAML
 documents, look at the values.yaml files in the chart to be customized.  By defining
 any of those YAML fields in the local values YAML documents, those values will be used
 instead of the ones in the chart.
