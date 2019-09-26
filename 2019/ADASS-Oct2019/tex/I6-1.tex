@@ -51,127 +51,161 @@ LSST has chosen Kubernetes as the platform for deploying and
 operating the LSST Science Platform.  We first present the
 background reasoning behind this decision, including both
 instrument agnostic as well as LSST specific requirements.
-We then discuss the basic principals of Kubernetes, and how
-they are used as the basis for the LSST Science Platform.
-We conclude with an example of how an outside group may
-use the publicly available resources to deploy their own
-instance of the LSST Science Platform, and customize it
-to their needs.
+We then discuss the basic principals of Kubernetes and Helm, and how
+they are used as the deployment base for the LSST Science Platform.
+Furthermore, we provide an example of how an external group may
+use these publicly available software resources to deploy their own
+instance of the LSST Science Platform, and customizing it
+to their needs.  Finally, we discuss how more astronomy software
+can follow these patterns to gain these same benefits.
 \end{abstract}
 
 \section{Introduction}
 
 The Large Synoptic Survey Telescope (LSST) will produce a huge amount
 of data over its 10 year survey. A dataset this large is not easily stored,
-copied, or manipulated.  To store the data and process it, hundreds of
+copied, or analyzed.  To work with this large dataset, hundreds of
 machines will be required.
 
 The LSST Science Platform (LSP) provides next to data processing and real
 time interaction with the data.  By allowing scientists to run their own
-custom python code in Jupyter notebooks in the LSP, we place them near the data,
-which allows for much higher bandwidth access to the data than between
-computers on the internet, as well as access to more processing
-resources for doing large scale analysis over the dataset.
+custom python code in Jupyter notebooks in the LSP, we place them next to
+the data no matter what they are in the world.
+This allows for high bandwidth access to the data that isn't possible between
+computers on the internet, as well as access to scalable computing resources
+for large scale analysis over the dataset.
 
 \subsection{Without Reproducbility, No One Knows What You Found}
 
-The processes and tools used to manage these systems must also scale and
-support these needs.  At the core of these needs is the ability to
+The processes and tools used to manage these systems must also scale to
+support these requirements.  At the core is the ability to
 reproducibly run software on machines, which has always seemed easier
 in theory than in practice.
 
-Over the 10 year survey, machines will naturally fail, or be replaced.
-Software will be updated and reinstalled.  The system
-must be able to work assuming that some of its nodes will be offline at
-any given time, because some inevitably will be with such a large number
-of machines.  As the system also needs to support user demand, the system
+Over our 10 year survey, machines will experience hardware failures, as
+well as replaced with newer, faster, more efficient machines.
+Software will be patched, updated, and reinstalled.  The system as a whole
+must continue to function assuming some percentage of its nodes will be
+unavailable at any given time, because some inevitably will be.
+As the system also needs to support user demand, the system
 must also be able to appropriately scale to load.
 
-These practical demands require an automated and reliable process for
-deploying new systems, or the whole system from scratch, in a reproducible
-way.  If it was not automated, then too much manual effort would be involved,
-taking time and resources.  Even well intentioned manual work by knowledgeble
-professionals is never perfect, possibly leaving unnoticed mistakes that could
-affect performance or even scientific results.
+These practical requirements call for an automated and reliable process for
+deploying new systems or replicate environments from scratch in a reproducible
+way.  If this process were not automated, too much manual effort would drain
+developer resources and be prone to human error.  Manual steps, even by knowledgeable
+professionals, is never perfect, which could leave unnoticed mistakes that could
+affect performance or worse, call into question scientific results built on
+these systems.
 
-While your project may not suffer from the scale of LSST, I would argue it is
-even more important to have reproducible software.  By having fewer machines,
+While your project may not have the scale of LSST, I would argue it is
+even more important to have reproducible software.  With fewer machines,
 a larger percentage of your computing resources will be unavailable if struck by
 hardware or software failures, possibly to the point of degraded performance
-or unavailability of the entire system.  If, however, you are lucky and your
-few machines take many years to fail, it may be found too late that you cannot
-easily reproduce the configuration due to software being deprecated or deleted.
-Longer lived machines also have greater risk of being manually tampered with by
+or unavailability of the entire system.  However, if you are lucky and your
+machines take many years to fail, it may be discovered too late that you cannot
+easily reproduce the system due to software being deprecated or deleted in the
+interim.  Long lived machines also have greater risk of being manually changed by
 well meaning operators and developers attempting to quickly fix or diagnose
 solutions.
 
 Results are only as good as your ability to reproduce them, large or small.
 Reproducing scientific results on a non-reproducible software platform of any size
-is fraught with risks.  While software will never be perfect, by tightly controlling
-the conditions in which it runs, results should at least be easily reproducible.
-If it's not, no one knows if you've found a software bug or the next Nobel prize.
+is fraught with risk.  While software will never be perfect, through careful
+management, results should at be reproducible if not correct, which helps diagnosis
+and resolution of software bugs.
+
+In an uncontrolled software environment, it can be hard to tell between software bugs
+and the next Nobel Prize.
 
 \subsection{The Quest for Reproducible Software}
 
-Reproducing a working software environment is not a trivial thing, due
-mostly to the number of interconnected pieces involved.  There's the software
-you are trying to run (the applications themselves), libraries and runtimes that
-those applications require, the operating system, and other applications running with
-or by the application on the same machine. More often than not, one application
-will also call another over the network, which requires knowledge of where that
-application is hosted (DNS name, URL) as well.
+Reproducing a working software environment is not a trivial thing, stemming from
+its natural complexity and interdependence between components.  These components
+include the astronomy applications, the libraries and runtimes that
+on which they depend, the base operating system, and other applications running 
+concurrently on the same machine.  Since all these required applications cannot
+typically fit on one physical machine, applications interconnect over the network,
+requiring services to help applications contact each other, such as DNS, proxies,
+and load balancers.
 
-Most software is designed to run under very controlled conditions, because
-it makes software easier to write, test, and verify.  Having to support every version of every
-operating system is a lot of work that doesn't make sense for many software
-projects, especially when the software won't need to run under those constraints
-in production.
+Most software is designed to run under tightly controlled conditions, because
+it makes software easier to write, test, and verify when you can depends on these
+conditions as a given.  For example, supporting every version of every
+operating system is a weighty, unnecessary burden that many software projects
+shouldn't trouble themselves with, unless absolutely necessary.
 
-Enter virtualization and the virtual machine (VM).  Now on your development machine running
-Windows, you can run a linux server with a particular configuration that behaves just
-like production.  Disk images and unattended installs for VMs provided a standard way of
-creating machines with a cookie cutter configuration.
+\subsection{Virtualization}
 
-Running VMs in production was still hard.  VMs can introduce a fair amount of performance
-overhead with heavy processing or disk I/O.  Each VM also has its own copy of the operating
+Enter virtualization and the virtual machine (VM).  Now on a development machine running
+one operating system, you can virtually run a different operating system inside a virtual
+machine, with both operating systems and their applications isolated from each other.
+Disk images and unattended installs for VMs provide a standard method of replicating
+machines with a cookie cutter configuration template.
+
+Running VMs in production at scale is still hard.  VMs can introduce performance
+overhead with heavy CPU processing or disk I/O.  Each VM contains its own copy of the operating
 system, libraries, and utilities, increasing the overhead of placing many VMs on the same
-physical host.  Using VMs, it can be very costly to provide complete isolation of application
-instances, but it was possible.  Many hybrid approaches with different flavors of machines running
-a particular set of services was very popular and successful, but this lacked flexibility
-in the ways a system could scale.
+physical host.  This overhead contributes to a low packing efficiency of VMs per physical machine.
+Using VMs, it can be very costly to provide complete isolation of application
+instances by running each application on an independent VM, but it was possible.
+Hybrid approaches of running a few applications together on one VM is popular and generally
+successful, although this sacrifices flexibility for scaling up or down.
 
 \subsection{Containerization}
 
-Containers are the current industry solution to this problem.  Containers are a way of packaging
-the application, its dependencies, and configuration as one unit.  Many containers can be
-run on one host sharing the same kernel.  This reduces the overhead of running many containers
-versus running many VMs, while still providing much of the isolation of a VM.
+Containers are the current industry solution the packing efficiency problem.  Containers are a way of packaging
+the application, its dependencies, and configuration as one self-contained unit.  Many containers can be
+run on one host sharing one operating system kernel, rather than simultaneously
+running many independent kernels in virtual machines.  This reduces the overhead of running many containers
+versus running many VMs, while still providing much of the isolation of a VM.\footnote{Containers 
+achieve this by using various features in kernels such as namespacing and cgroups
+to share the same kernel while isolating filesystems and process spaces.}  Containers
+provide much higher packing efficiency, allowing for many containers to run on one machine,
+encouraging further isolation between applications so that each application is run in its
+own container.
 
-\footnote{Containers use various features in kernels such as namespacing and cgroups
-to share the same kernel and have isolated filesystems and process spaces.}
-
-Since containers have everything they need already installed, and without the overhead of
+Due to their self-contained nature, and without the overhead of
 starting an operating system, containers can start very quickly, typically within seconds.
-This makes them not only reliable but quick to start on a new machine.
+Compare this to a VM, which may take minutes to be ready to handle user requests, even if
+it is already installed and configured. This makes containers not only easy to replicate but
+also quick to start on a new machine.
 
-Containers can also be published to the internet.  hub.docker.com allows for users to
-create accounts and publish their own container images, which are basically a compressed
-tar-file of the root filesystem.  This allows for anyone to download your container and
-start it on their machine.  When published, containers generally have a repository name,
-an image name, and a tag that contains some version information.  This is typically
-written as \code{repo\_name/image\_name:tag}.
+New containers are easy to build, by basing them on existing containers.  Many operating
+system containers already exist and are maintained by their respective organizations.
+Starting from one of these operating system containers, additional software can be
+installed and customized, files can be added, and commands can be run to create a
+new purpose-built container hosting your software.  These steps are contained in a
+\code{Dockerfile}, which can be checked into source control along with the code.
 
-So, finally, we have a reliable method to reproduce the installation of our software,
+Containers are also stateless, in that when a container is started, it always
+has the configuration it had when it was built.  Any files changed or added
+after a container is started is lost upon restart.  For persistent storage,
+volumes can be mounted inside a container, using the filesystem of the host
+to allow for storage between container restarts.  While this may seem cumbersome
+at first, by resetting the state, it allows for containers to be more resilient
+to an unrecoverable state or corruption of the system.
+
+Containers are also easily shareable by publishing them on the internet.  Docker Hub\footnote{https://hub.docker.com}
+allows for users to create accounts and publish containers, which basically consist of
+a compressed tar-file of the root filesystem.\footnote{For performance, this is actually split into
+various layers, so that containers can share parts of the filesystem where possible} This allows for
+anyone to download your container and start it on their local machine in minutes.  Containers are published under
+a name, along with tags that can represent different versions.\footnote{For example, lsst/application:latest}\footnote{
+For an excellent tutorial on creating containers, refer to: https://docs.docker.com/get-started/
+and https://docker-curriculum.com}
+
+So, finally, we have a reliable method to replicate the installation of software,
 at least on one machine.
 
 \subsection{Kubernetes}
 
-While containers are very useful, one container doesn't know about the other containers
+While containers are very useful, by design, one container doesn't know about the other containers
 on the system, and doesn't know anything about what might be running on other systems.
 In order to build complex systems from these containers, we need an orchestrator that
-can stitch together containers across multiple machines into one logical system.  Enter
-Kubernetes.
+can stitch together containers across multiple machines to form one logical system.
 
+Enter Kubernetes.
 Kubernetes, or k8s for short, is an open-source system built originally by Google to handle this exact
 problem.  Kubernetes allows for the coordination and orchestration of containers across
 a cluster of machines.
@@ -179,125 +213,131 @@ a cluster of machines.
 \section{Kubernetes: Core Concepts}
 
 K8s can be complex for newcomers, and there are many great tutorials out there
-for K8s.  While this isn't intended as an introduction to K8s, we will
+for k8s.  While this isn't intended as an introduction to k8s, we will
 introduce a few of the basic concepts to provide a common vocabulary for
 those who are not familiar.
 
 K8s is a declarative system - instead of running
-a sequence of commands, you inform k8s what you want the state of the system to be,
-and it will take the required actions to get to that declared state, as well as maintain
-that state over time.  K8s generally gets the declared state through a number of YAML documents
-that represent Kubernetes resources that are applied using the command line utility \code{kubectl}
+a sequence of commands, you declare what you want the state of the system to be.
+K8s will take the required actions to create that state, as well as maintain
+that state over time.  K8s defines this state as a set of resources with a number of
+configurable parameters, each resource represented by a human readable YAML document.
+These resources are created from YAML documents by using the \code{kubectl} command line utility.
 
-Let's learn about the different Kubernetes resource types through a 'hello world' example.
-\footnote{Here is a full tutorial that goes command by command through this process: https://kubernetes.io/docs/tutorials/hello-minikube/\#create-a-deployment}
-First, let's say you have a container named \code{myorg/hello\_world:latest}, which is
-the latest version of the \code{hello\_world} container, and you want to run this on kubernetes.
+Now we will cover some of the basic k8s resource types and how they can be used to orchestrate
+a group of containers, allowing them to create a distributed, scalable application.\footnote{
+Here is a hands-on tutorial that goes command by command through this process:
+https://kubernetes.io/docs/tutorials/hello-minikube/\#create-a-deployment}
 
-The Kubernetes way of thinking about this is that you want to create a \code{deployment} of this
-container.
-\footnote{Here is a good hands on tutorial with command lines: https://kubernetes.io/docs/tutorials/hello-minikube/\#create-a-deployment}
-\footnote{Technically, deployments act on pods, which are groups of containers that should be scheduled next to each other.  But in this example, it is a pod with one container.}
-A \code{deployment} is a k8s resource that instructs Kubernetes to check the health of your container,
-and take actions to ensure it is kept running.  If the container exits, doesn't respond
-to a health check, or the machine hosting it becomes unavailable, that container is then restarted
-or moved to a new machine.
+The main way of creating groups of containers is using the \code{deployment} resource.\footnote{
+Technically, deployments act on pods, which are groups of heterogeneous containers that should be
+scheduled on the same host.  But many times, a pod has one container.}
+A k8s \code{deployment} resource instructs Kubernetes to schedule a number of containers to run,
+to check the health of those containers,
+and take actions to ensure they are kept running and available.  If one container exits, doesn't respond
+to a health check, or the machine hosting it becomes unavailable, that container is then scheduled
+on a different machine automatically. 
 
-Deployments also allow a number of replicas to be set.  To run more copies of your application to
-scale it up, you can use the \code{kubectl} tool to increase or decrease the number of replicas for
-a deployment.  If the number of running copies falls below the number of desired replicas, new
-containers are created.
+A k8s \code{deployment} also allow a number of replicas to be set.  To run more copies of your application to
+scale up, you can use the \code{kubectl} tool to change the number of replicas for
+a \code{deployment}.  If the number of running copies falls below the number of desired replicas, new
+containers are scheduled and created.  If there are more containers than desired, they are terminated
+until the count reaches the desired number of replicas.
 
-Kubernetes doesn't need to be told where to run the container.  Based on different heuristics,
-it will pick a machine to start the container on.  However, labels and restrictions can be placed
-on nodes and applications to ensure containers are run on particular groups of machines.
-\footnote{https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/}
+K8s doesn't need to be told where to run the container.  Based on different heuristics,
+it will pick a machine to schedule the container on.  However, labels and restrictions can be placed
+on nodes and applications to ensure containers are run on particular groups of machines.\footnote{
+https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/}
 
-At this point, you have a running container, but you don't know where it is running, so therefore
-there is no way to access it.  Moreover, since a container might be moved or restarted somewhere
-else, you need to know how to contact the currently running container, wherever it is.  By creating
-a \code{service} resource, you can present a group of containers as an internal DNS name for your
-service.  This DNS name is taken from the \code{service} name, and will loadbalance
-requests amongst all the running containers using round-robin DNS.
+At this point, you have a running container in a \code{deployment}, but since you don't know on which
+machine it is running, it is hard to discover how to access it externally.
+Moreover, since a container might be moved or restarted on a different machine, you need to discover
+where the container is currently running.  By creating
+a \code{service} resource, you can contact containers using an internal DNS name.
+This DNS name is defined by the \code{service} name, and will load-balance
+requests among all the running containers using round-robin DNS.  These DNS names are only accessible
+from inside the k8s environment, and have a short time to live to keep the membership correct.
 
 By default, containers running in k8s are connected to a private internal network shared by all
-the k8s nodes, and is not accessible from the internet.  To allow the container to be reached
-from the internet, you will need an \code{ingress} resource.
-\footnote{The other way is to set the type of the service to LoadBalancer, which on many
+the k8s nodes, and is not externally accessible.  To allow the container to be reached
+from the external network, you will need to create an \code{ingress} resource.\footnote{
+Another way is to set the type of the service to LoadBalancer, which on many
 cloud providers allocates an external IP address, but this configuration is not available
 everywhere.}
 
-An \code{ingress} resource allows a k8s service to be contacted from an external network,
-such as the internet.  \code{ingress} resources have a mapping of hostnames and HTTP(s) paths
+An \code{ingress} resource allows for internal k8s DNS names to be contacted from an external network,
+such as the internet.  \code{ingress} resources have a mapping of public DNS names and HTTP(s) paths
 to backend k8s \code{service} instances.  These requests are routed through an ingress
 controller, such as the \code{nginx-ingress} controller, which we will use later on.
 Each ingress rule can have individualized k8s annotations to configure timeouts,
-or use advanced features such as URL rewriting.  By using \code{ingress} resources you can
-avoid the pattern of having a different nginx or load balancer in front of each service.
+or take advantage of nginx features such as URL rewriting.  By using \code{ingress} resources you can
+avoid having a different nginx or load balancers in front of each service.
 It is also easy to host multiple web services or applications behind one public DNS name,
-routing them by the URL.
+routing them to their respective container via the URL.
 
-Some kind of permenant storage is typically required for applications, and since k8s may move containers
-between machines, being able to find and utilize the same storage is an important
+Permanent storage is required for many applications, and since k8s may move containers
+between machines, being able to utilize the same storage across hosts is an important
 consideration.  K8s provides a way to allocate and attach storage to your container.
-The \code{persistent volume} or \code{PV} tells k8s what type of storage to use, and how
+The \code{persistent volume} or \code{PV} defines what type of storage to use, and how
 much space to allocate.  Each \code{PV} then be mounted by creating a \code{persistent
-volume claim}, and using that claim in the \code{deployment} YAML.  In this way, your
-container can mount a \code{PVC} on a specific path, making it look just like another
-filesystem.  However, unlike the container filesystem, the \code{persistent volume}
-storage will be kept after the lifecycle of the container, allowing it to hold persistent
-state across container restarts.
+volume claim}, which is then referenced in the \code{deployment} YAML.  In this way, your
+container can mount a \code{PVC} on a specific path inside the container.
+However, unlike the container filesystem, the \code{persistent volume}
+storage will be kept between container restarts.
 
-K8s provides a few ways of configuring services and managing configuration files.  The
-simplest is the container environment.  In the \code{deployment} YAML, each container
+Configuration of containers is another important consideration.  K8s provides a few ways of
+managing configuration files and environments.  The
+simplest is the container environment.  In the \code{deployment} resource, each container
 is defined, including the UNIX environment variables to set for that container.  In this
-way, a container when running can look at the variables injected into its local environment
-for configuration.  Due to the ubiquitous use of environment variables for programs, intended
-for containers or not, this can be a very simple way to configure your container.
+way, a container can inspect the environment variables injected into its local environment
+for configuration.  Due to the ubiquitous use of UNIX environment variables for controlling
+programs, intended for containers or not, this can be a very simple and effective method
+for container configuration.
 
 Another type of configuration is the \code{configmap}.  K8s \code{configmap}s are typically
-groups of files each with a name.  Like mounting a \code{persistent volume}, a \code{configmap}
+groups of files each with a filename.  Like mounting a \code{persistent volume}, a \code{configmap}
 can be mounted into a container, presenting the files in the configmap as normal files to be
-read by any application.
+read by any application.  In this way, configuration files can be injected into any container,
+without having to be present in the container at container build time.
 
 One last type of configuration to mention is the k8s \code{secret}.  K8s \code{secret}s can
 be used to hold sensitive configuration files of any type, passwords, or certificates.  Special
-care is taken to not expose the values of these secrets, which are typically shown for
+care is taken to not expose the values of these secrets, which are shown for
 environment variables and configmaps.  By using \code{secret}s it is easier to tell which
 parts of the configuration are secret (and likely instance specific) and which are general
-configuration variables.  \code{secret}s can be mounted like a volume into the containers
+configuration.  \code{secret}s can be mounted like a volume into the containers
 that they are used, or imported into the environment variables.
 
 Finally, k8s also has the concept of different \code{namespaces} to provide isolation between
-different applications running on the system.  \code{namespaces} not only provide a way to
-compartmentalize applications, but also to control them with roles and quotas.
-
-\footnote{Using roles and quotas is an important feature, but outside the scope of this paper.  Here are some helpful links:
+different parts of the system.  \code{namespaces} not only provide a way to
+compartmentalize applications, but also manage them with roles and quotas.\footnote{
+Using roles and quotas is an important feature, but outside the scope of this paper.  Here are some helpful links:
 https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
 https://kubernetes.io/docs/concepts/policy/resource-quotas/ https://kubernetes.io/docs/reference/access-authn-authz/rbac/}
 
 \section{Helm}
 
-K8s can be intimidating, and each application can have many parts.  For people who just
-want to install the software and run it, rather than develop it, looking at the raw
-k8s YAMLs might be too confusing or create a high barrier to entry.
+K8s can be intimidating, and each application can have many parts.  For those who only 
+want to install and run software, rather than develop it, looking at the raw
+k8s YAML documents might be too confusing and create a high barrier to entry.
 
-Over the lifetime of k8s, many groups have tried to solve this problem, and one of these
+Since the birth of k8s, many have tried to solve this problem, and one these
 solutions is Helm.\footnote{https://helm.sh}  Helm is a package manager for k8s, allowing
 for installation of all the parts of an application in one command, similar to apt-get
 or yum on Linux.  Helm also allows for upgrades and rollbacks of software versions.
 Most importantly, Helm allows for customization of the installed software, which is
-especially important to configure the software correctly for your k8s environment.
+especially important to configure the software correctly for your needs and k8s environment.
 
 Helm's packages are called charts.  Each chart is a tar archive containing a set of
-k8s YAML files to apply to the cluster, but these YAML files are first run through
+k8s YAML resources to apply to the cluster, but these YAML files are first run through
 a templating engine.  This allows for a chart developer to take user provided values
-and place them in the right parts of the final YAML files it will send to k8s.
-The values to apply to the template are provided via a user specific YAML document.
-This allows for the user to build a simpler YAML document with just the configuration
+and inject them in the right parts of the final YAML resources it will send to k8s.
+The values to apply to the template are provided via a user specific YAML document
+called the values file.
+This allows for the user to build a simpler YAML document with only the configuration
 values they want to apply, without having to have deep k8s knowledge.  In this way,
-users can now install software without needing to know how to develop that software,
-which lowers the barrier to entry.
+users can now run software on k8s without needing to know all the details of developing
+and configuring that software, which lowers the barrier to entry.
 
 Helm is one of the leading software packaging schemes for k8s, and many charts
 already exist for commonly used open-source software.\footnote{https://github.com/helm/charts
@@ -305,7 +345,7 @@ is the repository for official Helm charts}
 
 \section{Using Helm to Installing the LSP}
 
-To help everyone be able to install the LSP, there is now a repository of helm
+To help everyone be able to install the LSP, there is now a repository of Helm
 charts available at https://github.com/lsst-sqre/charts.  Each of these components
 of the LSP has its own chart that anyone can install:
 
@@ -313,43 +353,42 @@ of the LSP has its own chart that anyone can install:
 
 \item landing-page: A simple HTML landing page for the LSP with links to help users
 discover the different components of the LSP.  This also provides a simple message of
-the day to users, allowing operators and administrators to present messages about
-system upgrades or downtime.
+the day to users, allowing operators and administrators to present relevant
+messages about system upgrades or downtime.
 
-\item fileserver: A simple NFSv4 fileserver that provides a shared storage for
-home directories an data.  This is mounted by the Nublado JupyterLab containers,
+\item fileserver: A simple NFSv4 fileserver that provides shared storage for
+home directories and data.  This is mounted by the Nublado JupyterLab containers,
 and allows for persistent storage between logins, as well as a place to centrally
 store data to process.  For those with an existing fileserver in the environment,
 this won't be used, but instead Nublado can be configured to point to your existing
 fileserver.
 
 \item nublado: LSST's JupyterHub environment.  Nublado allows for users to spawn
-JupyterLab containers in k8s.  Users can run Jupyter notebooks and/or do interactive
-data analysis and investigation next to the data.  This chart provides a number of
-features over stock Jupyter, including a page to allow users to pick the version of
-their Jupyter environment, as well as more tightly integrated namespace and quota
-features.
+JupyterLab containers in k8s.  Users can then run Jupyter notebooks and do interactive
+data analysis next to the data.  This chart provides a number of
+features over stock JupyterHub, including a page to allow users to choose between
+different version of their Jupyter environment, as well as more tightly integrated 
+namespace and quota features for helping to operate Jupyter at large scale.
 
-\item firefly: The LSP provides firefly as one of the ways users can interact with
+\item firefly: The LSP provides Firefly as one of the ways users can interact with
 data using their browser.  Firefly is a portal that allows for quick preliminary
 investigation using the browser, as well as being integrated into the Jupyter
 environment for interactive analysis with notebooks.
 
 \item cadc-tap: The CADC TAP chart installs an IVOA TAP (Table Access Protocol)
-server into k8s, allowing for users to query catalogs through nublado, firefly,
-and externally.  This chart also sets up simple databases in k8s to provide
-TAP\_SCHEMA and a sample dataset for the TAP service to serve.
+server into k8s, allowing for users to query catalogs through Nublado, Firefly,
+and using external clients.  This chart also sets up simple database backends
+in k8s to provide TAP\_SCHEMA and a sample dataset for the TAP service to serve.
 
 \end{itemize}
-
-As we add more services and features to the LSP, they will also get Helm charts.
 
 Convenience scripts with a working configuration for Google are provided here:
 https://github.com/lsst-sqre/lsp-deploy
 
 Given that the instructions may change over time, I won't go through the exact
-instructions here, but explain what is happening.  The authorative instructions
-are in the repository along side the code, so they can be updated together.
+instructions here, but instead explain what is happening.  The authoritative instructions
+are in the lsp-deploy repository along side the code, so they can be updated together
+and remain relevant over time.
 
 There are a few stages to installing the LSP.
 
@@ -358,16 +397,14 @@ There are a few stages to installing the LSP.
 Either you have an existing k8s cluster, or you will create one.  It is very
 easy to create a k8s cluster on Google using Google Kubernetes Engine (GKE).
 While this can be done on the command line, it can be done with little effort
-using the Google Cloud Console.
-
-\footnote{https://cloud.google.com/kubernetes-engine/docs/how-to/creating-a-cluster
+using the Google Cloud Console.\footnote{https://cloud.google.com/kubernetes-engine/docs/how-to/creating-a-cluster
 provides a good walkthrough of creating a cluster using both the command line
 and the web portal.}
 
-In general, you want your k8s cluster to contain at least 3 nodes, each node
-having at least 2 if not 4 cores.  Also be sure to alter the host disk from
-the default 100GB to a higher number to store all the container images, about
-200GB should be safe.
+In general, you want your k8s cluster to contain at least 3 nodes, with each node
+having at least 2 if not 4 cores.  Also be sure to increase the host disk from
+the default 100GB to a higher number to store all the container images,
+200GB at least is recommended.
 
 Once you've created your cluster, you can connect it to your local kubectl
 command by clicking the 'Connect' button, and running the command line provided.
@@ -375,11 +412,12 @@ command by clicking the 'Connect' button, and running the command line provided.
 \subsection{Setting up Helm}
 
 Helm has a local component and a k8s component that both need to be installed.
-The \code{install\_tiller.sh} script provides a simple wrapper to set up Helm.
+The \code{install\_tiller.sh} script provides a simple wrapper to set up the
+server side Helm components.
 By default, this isn't particularly secure, so you should look into the Helm
-documentation to create a more secure deployment, but it will allow us to
-continue and install the various LSP components.  You can tell if helm is
-working properly by running \code{helm ls}, and returning that nothing
+documentation to create a more secure deployment for permanent environments,
+but it will serve for install the various LSP components on a test instance.
+You can tell if helm is working properly by running \code{helm ls}, and returning that nothing
 is installed, but no error is generated.
 
 \subsection{Configuring nginx-ingress}
@@ -397,15 +435,16 @@ Run the \code{public\_ip.sh} script to retrieve the external IP address for your
 cluster, and set it to a DNS name that works with the SSL certificate provided.
 
 At this point, if everything went well, you should be able to go to your
-DNS name over https, and get a 404 that says \code{default backend}.
+DNS name over HTTPS, have it resolve, and be presented with a 404 that says
+\code{default backend}.
 
 \subsection{Installing LSP Charts with Helm}
 
 Now let's examine the \code{install\_lsp.sh} script.  This script adds the LSP
 chart repository to Helm's search path, and uses \code{helm install} to install
-the charts.  After you run this script, you should be able to run \code{helm ls}
-and see that multiple charts are now installed, and their versions.  Now if you
-return to your DNS name in the browser, you should be presented with the LSST
+each chart in turn.  After you run this script, you should be able to run \code{helm ls}
+and see that multiple charts are now installed along with their versions.  If you
+now return to your DNS name in the browser, you should be presented with the LSST
 LSP Landing Page.  This provides links to the Nublado notebook environment and
 Firefly.
 
@@ -420,62 +459,73 @@ Now that you have a running LSP, it is easy to inspect it, use it, and see
 how it works in practice.  One of the first things you might want to do is
 customize the landing page.  After all, it would be confusing to present
 yourself as the LSST Science Platform if you are not.  Here we will go
-through a few different types of customizations as examples of how you
-could customize the LSP for your needs.
+through a few different examples using different types of customization
+to demonstrate how easy it is to tailor the LSP.
 
 \subsection{Changing the MOTD}
 
 One simple thing you will want to do is change the message of the day,
-which is presented in a box on the landing page.  After all, it would be
-confusing to present messages that aren't intended for your users.
+which is presented in a box on the landing page.  
 The message of the day comes from a markdown document whose URL is passed
 into the landing page container as an environment variable.
 We will use Helm to allow us to customize that parameter
-to point to a new markdown document.  Create a file named langing-page-values.yaml
-with the following contents.
+to point to a new markdown document.  Edit landing-page-values.yaml
+and replace the \code{motd\_url} URL with the URL of a markdown document
+of your choice.
 
-\fbox{
-motd\_url: <URL of your MOTD markdown document>
-}
-
-Now you can call helm install and add the argument --values, and pass the path to
-the newly created file.  This will take the URL provided in the landing-page-values.yaml,
-and apply it to the chart.  Now when you go to the landing page, you should see
-your new MOTD message.
+Now when the LSP is installed, the message of the day should display
+the markdown document you specified.  This is because Helm has taken
+the values in landing-page-values.yaml and injected them into the
+appropriate place in the \code{deployment} resource.  By running
+Helm with the \code{--dry-run} option, you can inspect the YAML
+documents for the resources after the templating has been applied.
 
 \subsection{Changing the Container Image}
 
 Instead of just changing the MOTD, if you want to use a different HTML landing page,
-the easiest way is to create a new container with the web page you want.  You can
+the easiest way is to create a new container containing the web page you want.  You can
 see how the docker container for the landing page is created by looking at the
-Dockerfile in the landing page repository.\footnote{https://github.com/lsst-dm/lsp-landing-page/blob/master/Dockerfile}
+Dockerfile in the landing page repository.\footnote{
+https://github.com/lsst-dm/lsp-landing-page/blob/master/Dockerfile}
 
 It is possible to either make a GitHub fork of this git repository or create
 a new docker image using your own assets.  For the LSP landing page, all the assets
-are in the public\_html directory of the git repository, and it is added to a directory
-that nginx is ready to serve it from.
+are in the public\_html directory of the git repository.  The Dockerfile specifies
+that this directory is copied into the container to the directory from where nginx
+serves static files.
 
-Once you make a new container and push it to hub.docker.com, you can create a
-file named landing-page-values.yaml to point to that image.  If your new image is
-\code{newtelescope/landing-page:latest} your landing-page-values.yaml would look like:
+Once you make a new container and push it to hub.docker.com, you can edit the 
+landing-page-values.yaml file to use that container instead of the default.
+If your new image is \code{newtelescope/landing-page:latest} your landing-page-values.yaml
+would be:
 
 \fbox{
+motd\_url: https://raw.githubusercontent.com/lsst-dm/lsp-landing-page/master/motd/Readme.md
 image:
   repository: newtelescope/landing-page
   tag: latest
 }
 
+Now upon running helm install, the new container will be run instead of the default, and
+navigating your browser to your LSP deployment should display the web page in your image.
+
+\subsection{Further Customization Options}
+
+To discover other configuration options that can be put in the different values YAML
+documents, look at the values.yaml files in the chart to be customized.  By defining
+any of those YAML fields in the local values YAML documents, those values will be used
+instead of the ones in the chart.
+
 \subsection{Fixing Bugs and Suggesting Chart Changes}
 
 Bugs are the nature of software development, and Helm charts are no different.  If you
-find a bug, please make an issue on the chart repo \footnote{https://github.com/lsst-sqre/charts}
+find a bug, please make an issue on the chart repo\footnote{https://github.com/lsst-sqre/charts}
 on GitHub.  This will allow others to see there may be an issue, as well as notify the
-developers that something may need a fix.
+developers that something may need to be fixed.
 
 If you already know what the required fix is, please submit a pull request (PR)
-on the repository with your changes.
-
-\footnote{https://help.github.com/en/articles/creating-a-pull-request}
+on the repository with your changes.\footnote{
+https://help.github.com/en/articles/creating-a-pull-request}
 
 If you have new features you wish to add to an existing chart, such as new ways of overriding
 particular deployment values, you can also submit a PR containing that information.  It helps
@@ -485,48 +535,49 @@ if the changes don't remove or alter other functionality, but sometimes this is 
 
 The Helm charts listed in section 4 are not intended to be a complete or authoritative
 list, but a starting place.  I hope that after seeing the usefulness of being able
-to install another institutions science platform, your institution will also want to
-Kubernetes and Helm to share software with the rest of the astronomy community.
+to install another institution's science platform, your institution will also want to
+use k8s and Helm to share software with the rest of the astronomy community.
 
-The Helm repository framework allows for anyone to pull charts from multiple different
-repositories without having to have a centralized store, gate-keeper, or process.  It is
-simple to set up your own repository on GitHub to store your own set of helm charts,
-and proceed with whatever software development process or timeline your institution
-recommends or requires.\footnote{https://helm.sh/docs/chart\_repository/ is an
-excellent resource for using existing services such as GitHub Pages and others
-to host your helm charts for free.}
+The Helm repository framework allows for anyone to pull charts from multiple chart 
+repository sources without having to have a centralized store, gate-keeper, or process.  It is
+simple to set up your own repository on GitHub to store your own set of helm charts.
+This allows for your Helm charts to be developed under whatever software development 
+process or timeline your institution recommends or requires.\footnote{
+https://helm.sh/docs/chart\_repository/ is an excellent resource for using existing
+services such as GitHub Pages and others to host your helm charts for free.}
 
 When possible, it is better to patch or add features to an existing chart rather
 than create a new chart that deploys the same software.  Having many charts that
 accomplish the same thing can add confusion and maintenance overhead.
 
 If you are creating a new chart for a new software service, there are many great
-blog posts and helpful documentation on the Helm website.\footnote{https://docs.bitnami.com/kubernetes/how-to/create-your-first-helm-chart/
+blog posts and helpful documentation on the Helm website.\footnote{
+https://docs.bitnami.com/kubernetes/how-to/create-your-first-helm-chart/
 is a very thorough walkthrough of an example}
 
 \section{Conclusion}
 
-Astronomy as a field will be ever more reliant on software to produce its results.
-Being able to reproducibly develop, deploy, configure, and utilize software are
+The field of astronomy will be ever more reliant on software to produce its results.
+Being able to reproducibly develop, deploy, configure, and operate software are
 essential first steps to relying on that software to produce novel scientific
-results that can be reproduced, verified, and trusted.
+results that can be replicated, reproduced, and trusted.
 
 As astronomy software becomes more complex and intertwined with other big
 data science fields, such as computer science, biology, and physics, it will
-become necessary to share software between these groups.  Writing software that
+become necessary to share software within these groups.  Writing software that
 is of high quality and scales to these problems requires specialized talent,
 and a lot of other resources.  It makes logical, scientific, and financial
 sense that disparate fields work together to build, test, and verify software
 together, instead of each institution developing their own specialized software.
 
-In the era of big data and multi-messenger astronomy, it is practically required
-for institutions that mirror an instrument's data to also provide local mirrors
-of software services and tools to operate on that data.  Given the specialized
+In the era of big data and multi-dataset astronomy, it is practically required
+for institutions that mirror an instrument's dataset to also provide local mirrors
+of software services and tools to operate on those datasets.  Given the specialized
 nature of each instrument, it will be increasingly important for environments
-to allow astronomers to work with multiple datasets in the same datacenter
-simultaneously.  These multi-instrument datacenters will require a standard
-way of installing and updating software provided by the instrument creators
-with limited assistance. Kubernetes and Helm provide one way of accomplishing
+to allow astronomers to work with multiple datasets in co-located the same datacenter.
+These multi-dataset datacenters will require a standard
+way of installing and updating software provided by the instrument creators and software
+developers with limited assistance. Kubernetes and Helm provide one way of accomplishing
 this goal using already standard software industry practices and tooling.
 
 By bringing in tools and practices from the software industry, we can also
@@ -534,8 +585,10 @@ leverage the open source community (as well as companies who participate in
 open source) as a force multiplier for astronomers to accomplish
 more than they ever could before. Using these industry standard tools that
 developers know and love, it could also be a boon to recruiting talented
-software developers to astronomy.
-
+software developers to astronomy.  As astronomers become more familiar with
+these new standard tools, by sharing these across multiple instruments, that
+familiarity can help increase the efficiency of analysis and increase scientific
+output, as well as reduce the time to verify and replicate results.
 
 \bibliography{I6.1}
 
