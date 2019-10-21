@@ -15,7 +15,7 @@
 
 \bibliographystyle{asp2014}
 
-\markboth{Banek}{(I6.1) Why is the LSST Science Platform built on Kubernetes?}
+\markboth{Banek et al.}{(I6.1) Why is the LSST Science Platform built on Kubernetes?}
 % remove/add as you need
 
 \begin{document}
@@ -23,12 +23,16 @@
 \title{(I6.1) Why is the LSST Science Platform built on Kubernetes?}
 
 
-\author{Christine~Banek$^1$}
+\author{Christine~Banek,$^1$ Adam~Thornton,$^1$ Frossie~Economou,$^1$ K.~Simon~Krughoff,$^1$ and Jonathan~Sick$^1$}
 \affil{$^1$AURA/LSST, Tucson, AZ, USA; \email{cbanek@lsst.org}}
 % remove/add as you need
 
 % remove/add authors as you need
-\paperauthor{Christine~Banek}{cbanek@lsst.org}{0000-0002-4337-4956}{AURA}{LSST}{Tucson}{AZ}{85716}{USA}
+\paperauthor{Christine~Banek}{cbanek@lsst.org}{0000-0002-4337-4956}{AURA}{LSST}{Tucson}{AZ}{85721}{USA}
+\paperauthor{Adam~Thornton}{athornton@lsst.org}{0000-0001-9342-6032}{AURA}{LSST}{Tucson}{AZ}{85721}{USA}
+\paperauthor{Frossie~Economou}{frossie@lsst.org}{0000-0002-8333-7615}{AURA}{LSST}{Tucson}{AZ}{85721}{USA}
+\paperauthor{K.~Simon~Krughoff}{krughoff@lsst.org}{0000-0002-4410-7868}{AURA}{LSST}{Tucson}{AZ}{85721}{USA}
+\paperauthor{Jonathan~Sick}{jsick@lsst.org}{0000-0003-3001-676X}{AURA}{LSST}{Tucson}{AZ}{85721}{USA}
 % remove/add as you need
 
 % leave these next few aindex lines commented for the editors to enable them. Use Aindex.py to generate them for yourself.
@@ -62,15 +66,16 @@ can follow these patterns to gain similar benefits.
 
 \section{Introduction}
 
-The Large Synoptic Survey Telescope (LSST) dataset can not be easily stored,
+The Large Synoptic Survey Telescope \citep[LSST;][]{2019ApJ...873..111I}
+dataset can not be easily stored,
 copied, or analyzed, due to its large size.  Hundreds of machines will be
 required, not only to store and process the data, but also to allow users
 to run their own analysis next to the data.
 
-The LSST Science Platform (LSP) provides next-to-data processing and 
+The LSST Science Platform \citep[LSP;][]{LSE-319,LDM-554,LDM-542} provides next-to-data processing and
 real-time interaction with the data.  By allowing scientists to run their own
-Python code in Jupyter notebooks in the LSP, we run their code next to
-the data no matter where they are in the world.
+Python code in Jupyter\footnote{https://jupyter.org/} notebooks in the LSP,
+we run their code next to the data no matter where they are in the world.
 
 \subsection{Without Reproducbility, No One Knows What You Found}
 
@@ -91,7 +96,7 @@ At smaller scale, it is even more important to have reproducible software.  With
 fewer machines, a larger fraction of computing resources could be unavailable due to
 hardware or software failures, possibly to the point of unavailability of the entire
 system.  However, if your machines take many years to fail, it may be discovered too
-late that you cannot reproduce the system. 
+late that you cannot reproduce the system.
 Long-lived machines also have greater risk of being manually changed by
 well-meaning operators and developers attempting to hot-fix or diagnose issues.
 
@@ -105,7 +110,7 @@ differentiate between software bugs and the next Nobel Prize.
 
 Reproducing a working software environment is not trivial, due to
 its natural complexity and interdependence between components.  These components
-include astronomy applications, libraries and runtimes they depend upon, the 
+include astronomy applications, libraries and runtimes they depend upon, the
 operating system, and other applications running concurrently on the same machine.
 Since all these required applications cannot
 typically run on one physical machine, applications interconnect over a network,
@@ -120,7 +125,7 @@ should not attempt.
 
 \subsection{Virtualization}
 
-Using virtualization, a machine running one operating system can run a different 
+Using virtualization, a machine running one operating system can run a different
 operating system inside a virtual machine (VM).  The physical machine and the VM
 are isolated from each other.   VMs introduce a performance penalty for heavy CPU
 processing or disk I/O.  Since each VM contains its own copy of the operating
@@ -435,10 +440,10 @@ list, but a start.  I hope that after seeing the usefulness of being able
 to install another institution's science platform, your institution will also want to
 use k8s and Helm to share software with the rest of the astronomy community.
 
-The Helm repository framework allows for anyone to pull charts from multiple chart 
+The Helm repository framework allows for anyone to pull charts from multiple chart
 repository sources without having to have a centralized store, gate-keeper, or process.  It is
 simple to create your own repository on GitHub to store your own Helm charts.
-This allows for your Helm charts to be developed under whatever software development 
+This allows for your Helm charts to be developed under whatever software development
 process or timeline your institution recommends or requires.\footnote{
 https://helm.sh/docs/chart\_repository/ is an excellent resource for using existing
 services such as GitHub Pages and others to host your helm charts for free.}
@@ -485,7 +490,19 @@ these new tools, and by sharing them across multiple instruments, that
 familiarity can help increase the efficiency of analysis and scientific
 output, as well as reduce the time to verify and replicate results.
 
-\bibliography{I6.1}
+\section{Acknowledgements}
+
+This material is based upon work supported in part by the National Science
+Foundation through Cooperative Agreement 1258333 managed by the Association
+of Universities for Research in Astronomy (AURA), and the Department of Energy
+under Contract No. DE-AC02-76SF00515 with the SLAC National Accelerator Laboratory.
+Additional LSST funding comes from private donations, grants to universities, and
+in-kind support from LSSTC Institutional Members.
+
+We thank Matias Carrasco Kind, Tim Jenness, and Kian-Tat Lim for reviewing
+this manuscript.
+
+\bibliography{I6-1}
 
 % if we have space left, we might add a conference photograph here. Leave commented for now.
 % \bookpartphoto[width=1.0\textwidth]{foobar.eps}{FooBar Photo (Photo: Any Photographer)}
