@@ -168,7 +168,7 @@ allows for users to publish container images, which consist of
 a compressed \code{tar} file of the root filesystem.\footnote{For performance, this is split into
 various layers, so that containers can share parts of the filesystem where possible} This allows
 anyone to run your container on their local machine in minutes.  Containers images are published under
-a name, along with tags that can represent different versions.\footnote{For example, lsst/application:latest}\footnote{
+a name, along with tags that can represent different versions.\footnote{For example, lsst/application:latest}\textsuperscript{,}\footnote{
 For an excellent tutorial on creating containers, refer to: https://docs.docker.com/get-started/
 and https://docker-curriculum.com}
 
@@ -219,7 +219,7 @@ requests among all the running containers.
 
 By default, containers running in k8s are connected to a private internal network shared by all
 the k8s nodes.  To expose a service to the external network, you will need to create an \code{ingress}
-resource.  \code{ingress} resources map public DNS names and HTTP(s) paths
+resource.  \code{ingress} resources map public DNS names and HTTP(S) paths
 to backend k8s \code{service} instances.  These requests are routed through an ingress
 controller, such as the \code{nginx-ingress} controller.  Each ingress rule can have
 individualized configuration of nginx features such as a timeouts and URL rewriting.
@@ -282,7 +282,7 @@ Helm is one of the leading software packaging schemes for k8s, and many charts
 already exist for commonly used open-source software.\footnote{https://github.com/helm/charts
 is the repository for official Helm charts}
 
-\section{Using Helm to Installing the LSP}
+\section{Using Helm for Installing the LSP}
 
 To help everyone be able to install the LSP, there is now a repository of Helm
 charts available at https://github.com/lsst-sqre/charts.  Each of these components
@@ -308,15 +308,17 @@ data analysis next to the data.  This chart provides a number of features not pr
 in stock JupyterHub, including a page to allow users to choose between different versions
 of their Jupyter environment.
 
-\item firefly: Firefly is one of the ways users can interact with image and catalog
+\item firefly: Firefly \citep{2013ASPC..475..315R} is one of the ways users can interact with image and catalog
 data.  Firefly is a web portal that allows for quick preliminary
 investigation using the browser, and is integrated into the Jupyter
 environment for interactive analysis with notebooks.
 
-\item cadc-tap: The CADC TAP chart installs an IVOA TAP (Table Access Protocol)
+\item cadc-tap: The cadc-tap chart installs an IVOA TAP \citep[Table Access Protocol;][]{2010ivoa.spec.0327D}
 server into k8s, allowing users to query catalogs through Nublado, Firefly,
 or external clients.  This chart also sets up simple database backends
 in k8s to provide TAP\_SCHEMA and a sample dataset for the TAP service to serve.
+The server that this chart installs was written by the Canadian Astronomy Data Centre,
+and the code is publicly available on GitHub.\footnote{https://github.com/opencadc/tap}
 
 \end{itemize}
 
@@ -327,7 +329,7 @@ instructions here, but instead explain what is happening.  The authoritative ins
 are in the lsp-deploy repository along side the code, so they can be updated together
 and remain relevant over time.}
 
-There are a few stages to installing the LSP.
+There are a few stages to installing the LSP, which we will cover next.
 
 \subsection{Creating a Kubernetes Cluster}
 
